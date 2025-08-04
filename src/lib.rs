@@ -15,23 +15,18 @@ pub enum Error {
 
 pub trait BTreeSet {
     type Key: Eq;
-
-    fn new() -> Self;
-
-    fn min_degree(&self) -> usize;
-
-    fn max_keys(&self) -> usize {
-        2 * self.min_degree() - 1
-    }
+    const B: usize;
 
     fn search(&self, key: &Self::Key) -> Result<&Self::Key>;
-
     fn insert(&mut self, key: Self::Key) -> Result<()>;
-
     fn remove(&mut self, key: &Self::Key) -> Result<Self::Key>;
 
     fn contains(&self, key: &Self::Key) -> bool {
         self.search(key).is_ok()
+    }
+
+    fn max_keys(&self) -> usize {
+        2 * Self::B - 1
     }
 }
 
