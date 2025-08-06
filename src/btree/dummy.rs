@@ -1,10 +1,23 @@
 use crate::{BTreeSet, Error, Result};
-use std::{collections::VecDeque, f32::MIN};
+use std::collections::VecDeque;
 
+/// An dummy in-memory B-tree implementation. The tree does not consider any
+/// "clever" optimizations. The implementation is intended for learning
+/// purposes.
+///
+/// The K type parameter represents the key type, and B is the branching factor.
+///
+/// The root is wrapped in an `Option`, which allows the tree to avoid any
+/// allocations.
 pub struct DummyBTreeSet<K, const B: usize = 6> {
     root: Option<Root<K, B>>,
 }
 
+/// Represents the root of the B-tree. It contains a single node, which is
+/// either a leaf or an intermediate node.
+///
+/// The root node has no restrictions on the number of keys it can hold, in
+/// fact, it could hold no keys at all!
 struct Root<K, const B: usize> {
     node: Node<K, B>,
 }
@@ -31,6 +44,7 @@ impl<K: Ord, const B: usize> BTreeSet for Root<K, B> {
             InsertResult::AlreadyExists => Err(Error::KeyAlreadyExists),
             InsertResult::Inserted => Ok(()),
             InsertResult::Split(hoist, sibling) => {
+                // If the root node is split, we create a new root node.
                 let old_node = std::mem::take(&mut self.node);
                 self.node = Node::intermediate([hoist], [old_node.link(), sibling.link()]);
                 Ok(())
@@ -43,6 +57,10 @@ impl<K: Ord, const B: usize> BTreeSet for Root<K, B> {
             RemoveResult::None => return Err(Error::KeyNotFound),
             RemoveResult::Key(key) => return Ok(key),
             RemoveResult::Deficiency(key) => {
+                // If the root node has no remaining keys left, and it's an
+                // intermediate node, this means that the node was merged, and
+                // the parent key was lowered. We can safely presume that there
+                // *is* a single child left, which is the new root.
                 if self.node.has_no_remaining_keys() && !self.node.is_leaf {
                     self.node = *self.node.children.pop_front().unwrap();
                 }
@@ -53,8 +71,14 @@ impl<K: Ord, const B: usize> BTreeSet for Root<K, B> {
     }
 }
 
+/// A link to a node in the B-tree. This is used to avoid recursive types.
 type Link<K, const B: usize> = Box<Node<K, B>>;
 
+/// Represents a node in the B-tree. It can be either a leaf or an intermediate.
+///
+/// Intermediate nodes contain keys and links to child nodes while leaf nodes
+/// contain only keys, and absolutely no children. In fact, leaf nodes never
+/// allocate any memory for child nodes.
 struct Node<K, const B: usize> {
     is_leaf: bool,
     keys: VecDeque<K>,
@@ -74,8 +98,7 @@ impl<K, const B: usize> Default for Node<K, B> {
 impl<K: Ord, const B: usize> Node<K, B> {
     const MIN_KEYS: usize = B - 1;
     const MAX_KEYS: usize = 2 * B - 1;
-    const MIN_CHILDREN: usize = 2 * B;
-    const MAX_CHILDREN: usize = B;
+    const MAX_CHILDREN: usize = 2 * B;
 
     fn has_no_remaining_keys(&self) -> bool {
         self.keys.is_empty()
@@ -156,6 +179,7 @@ impl<K: Ord, const B: usize> Node<K, B> {
         if self.is_leaf {
             self.keys.insert(idx, key);
 
+            // If the leaf node has overflowed, we split it.
             if self.is_overflowed() {
                 let (hoist, sibling) = self.split();
                 InsertResult::Split(hoist, sibling)
@@ -167,10 +191,12 @@ impl<K: Ord, const B: usize> Node<K, B> {
 
             match child.insert(key) {
                 InsertResult::Split(hoist, sibling) => {
+                    // We insert the hoisted key and the new sibling into the current node.
                     self.keys.insert(idx, hoist);
                     self.children.insert(idx + 1, sibling.link());
 
-                    if self.children.len() > 2 * B - 1 {
+                    // If the current node has overflowed, we split it too.
+                    if self.children.len() > Self::MAX_CHILDREN {
                         let (hoist, sibling) = self.split();
                         InsertResult::Split(hoist, sibling)
                     } else {
@@ -207,6 +233,8 @@ impl<K: Ord, const B: usize> Node<K, B> {
 
 impl<K: Ord, const B: usize> Node<K, B> {
     /// Splits the node into two nodes, returning the hoisted key and the new sibling node.
+    ///
+    /// This method assumes that the node contains at least `2B - 1` keys.
     fn split(&mut self) -> (K, Node<K, B>) {
         if self.is_leaf {
             let keys = self.keys.split_off(B);
@@ -393,7 +421,7 @@ enum InsertResult<K, const B: usize> {
 }
 
 impl<K: Ord, const B: usize> DummyBTreeSet<K, B> {
-    fn new() -> Self {
+    pub fn new() -> Self {
         DummyBTreeSet { root: None }
     }
 }
