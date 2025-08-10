@@ -14,7 +14,7 @@ pub enum Error {
 }
 
 pub trait BTreeSet {
-    type Key: Eq;
+    type Key: Ord;
     const B: usize;
 
     fn search(&self, key: &Self::Key) -> Result<&Self::Key>;

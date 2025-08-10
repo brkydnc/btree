@@ -1,7 +1,7 @@
 use crate::{BTreeSet, Error, Result};
 use std::collections::VecDeque;
 
-/// An dummy in-memory B-tree implementation. The tree does not consider any
+/// A simple in-memory B-tree implementation. The tree does not consider any
 /// "clever" optimizations. The implementation is intended for learning
 /// purposes.
 ///
@@ -9,7 +9,7 @@ use std::collections::VecDeque;
 ///
 /// The root is wrapped in an `Option`, which allows the tree to avoid any
 /// allocations.
-pub struct DummyBTreeSet<K, const B: usize = 6> {
+pub struct SimpleBTreeSet<K, const B: usize = 6> {
     root: Option<Root<K, B>>,
 }
 
@@ -420,13 +420,13 @@ enum InsertResult<K, const B: usize> {
     Split(K, Node<K, B>),
 }
 
-impl<K: Ord, const B: usize> DummyBTreeSet<K, B> {
+impl<K: Ord, const B: usize> SimpleBTreeSet<K, B> {
     pub fn new() -> Self {
-        DummyBTreeSet { root: None }
+        SimpleBTreeSet { root: None }
     }
 }
 
-impl<K: Ord, const B: usize> BTreeSet for DummyBTreeSet<K, B> {
+impl<K: Ord, const B: usize> BTreeSet for SimpleBTreeSet<K, B> {
     type Key = K;
     const B: usize = B;
 
@@ -459,5 +459,5 @@ mod tests {
     use super::*;
     use crate::test_btree_impl;
 
-    test_btree_impl!(DummyBTreeSet);
+    test_btree_impl!(SimpleBTreeSet);
 }
